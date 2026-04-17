@@ -2067,7 +2067,13 @@ async function runConnectionTest() {
     if (d.success) {
       setItem('psi', 'ok', 'Erreichbar · ' + ms + 'ms · Score ' + (d.perf_score||'?') + '/100');
     } else {
-      setItem('psi', 'err', d.error || 'HTTP ' + r.status);
+      var errMsg = d.error || 'HTTP ' + r.status;
+      // Quota-Fehler verständlich anzeigen
+      if (errMsg.toLowerCase().includes('quota') || errMsg.toLowerCase().includes('exceeded')) {
+        setItem('psi', 'ok', 'Erreichbar · Tageslimit Google API erreicht (kein PSI-Key hinterlegt)');
+      } else {
+        setItem('psi', 'err', errMsg.slice(0, 60));
+      }
     }
   } catch(e) {
     setItem('psi', 'err', e.message.slice(0,40));

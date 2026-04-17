@@ -17,9 +17,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_
 // Settings laden
 $settingsFile = __DIR__ . '/settings.json';
 $settings = file_exists($settingsFile) ? json_decode(file_get_contents($settingsFile), true) : [];
-// Provider: expliziter Request-Body-Parameter hat höchste Priorität (z.B. Verbindungstest),
-// dann env var, dann settings.json
-$provider = $body['_provider'] ?? (getenv('AI_PROVIDER') ?: ($settings['ai_provider'] ?? 'anthropic'));
+// Provider: trim + lowercase schützt gegen Leerzeichen/Zeilenumbrüche in Secret-Werten
+$provider = trim(strtolower(
+    $body['_provider'] ?? (getenv('AI_PROVIDER') ?: ($settings['ai_provider'] ?? 'anthropic'))
+));
+if (!in_array($provider, ['anthropic', 'openai'])) { $provider = 'anthropic'; }
 
 // Request-Body
 $rawInput = file_get_contents('php://input');
