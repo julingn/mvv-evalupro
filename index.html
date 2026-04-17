@@ -1826,7 +1826,8 @@ async function fetchGscData(url) {
     return null;
   } catch(e) { return null; }
 }
-var currentProvider = 'anthropic';
+// currentProvider aus sessionStorage wiederherstellen (kein Timing-Problem bei Seitenlade)
+var currentProvider = sessionStorage.getItem('evalupro_provider') || 'anthropic';
 
 function toggleKeyVisibility(id) {
   var inp = document.getElementById(id);
@@ -1836,6 +1837,7 @@ function toggleApiKeyVisibility() { toggleKeyVisibility('settings-api-key'); }
 
 function switchProvider(prov) {
   currentProvider = prov;
+  sessionStorage.setItem('evalupro_provider', prov);
   var secAnt = document.getElementById('prov-section-anthropic');
   var secOai = document.getElementById('prov-section-openai');
   if (secAnt) secAnt.style.display = prov === 'anthropic' ? '' : 'none';
@@ -2237,11 +2239,9 @@ document.addEventListener('DOMContentLoaded', function() {
   updateContainerPadding();
   window.addEventListener('resize', updateContainerPadding);
 
-  // Settings und GSC-Domains verzögert laden (nach Session-Aufbau)
-  setTimeout(function() {
-    loadGscDomains();
-    loadSettingsPanel();
-  }, 800);
+  // Settings sofort laden (kein Session-Delay nötig ohne cPanel-Login)
+  loadSettingsPanel();
+  setTimeout(function() { loadGscDomains(); }, 400);
 });
 
 // Strip scripts/styles/base64 — keeps semantic content for Claude analysis
