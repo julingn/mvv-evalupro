@@ -1891,11 +1891,20 @@ async function loadSettingsPanel() {
       }
 
       if (s.ai_provider) switchProvider(s.ai_provider);
-      // Provider-Toggle sperren wenn env gesetzt
+      // Provider-Toggle: immer klickbar — ENV-Badge zeigt nur an, welcher Provider im Backend aktiv ist
       var provEnv = s.ai_provider_source === 'env';
+      var provToggleWrap = document.getElementById('prov-env-badge');
+      if (provEnv && !provToggleWrap) {
+        var badge = document.createElement('span');
+        badge.id = 'prov-env-badge';
+        badge.style.cssText = 'font-size:11px;color:var(--text3);margin-left:8px;vertical-align:middle';
+        badge.innerHTML = '<span style="display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;background:var(--green-bg);color:var(--green);border:1px solid var(--green-border)">&#9632; ENV</span> Backend nutzt GitHub Secret <code style="font-size:10px">AI_PROVIDER=' + s.ai_provider + '</code>';
+        var toggleWrap = document.querySelector('#prov-btn-openai') && document.querySelector('#prov-btn-openai').closest('div');
+        if (toggleWrap && toggleWrap.parentNode) toggleWrap.parentNode.insertBefore(badge, toggleWrap.nextSibling);
+      }
       ['prov-btn-anthropic','prov-btn-openai'].forEach(function(id) {
         var b = document.getElementById(id);
-        if (b) { b.disabled = provEnv; b.title = provEnv ? 'Wird aus GitHub Secret AI_PROVIDER gesteuert' : ''; }
+        if (b) { b.disabled = false; b.title = ''; }
       });
 
       var modelSel = document.getElementById('settings-openai-model');
@@ -1972,6 +1981,7 @@ async function runConnectionTest() {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
+        _provider: currentProvider,
         model: testModel,
         max_tokens: 1,
         messages: [{role: 'user', content: 'Hi'}]
