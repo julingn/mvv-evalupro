@@ -7,6 +7,10 @@
  *   save   POST → Domain + Sa-JSON speichern
  *   delete POST → Domain löschen
  *   data   POST → GSC-Daten für URL abrufen { url, site_url, domain_id }
+ *
+ * ENV-Vars (GitHub Codespace Secrets):
+ *   GSC_SERVICE_ACCOUNT_JSON  Base64-kodiertes Service-Account-JSON
+ *   GSC_SITE_URL              GSC Site-URL (z.B. sc-domain:example.com)
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -28,6 +32,18 @@ function saveDomains(array $data): void {
     file_put_contents(DOMAINS_FILE, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 }
 
+/** Liest Service-Account und Site-URL aus Env-Vars (base64-dekodiert). */
+function getEnvGscCredentials(): ?array {
+    $b64 = getenv('GSC_SERVICE_ACCOUNT_JSON');
+    $siteUrl = trim(getenv('GSC_SITE_URL') ?: '');
+    if (empty($b64) || empty($siteUrl)) return null;
+    $json = base64_decode($b64, true);
+    if ($json === false) return null;
+    $sa = json_decode($json, true);
+    if (!is_array($sa) || empty($sa['client_email']) || empty($sa['private_key'])) return null;
+    return ['sa' => $sa, 'site_url' => $siteUrl];
+}
+
 $action = $_GET['action'] ?? '';
 
 // ── action=list ──
@@ -35,8 +51,31 @@ if ($action === 'list') {
     $domains = loadDomains();
     // Service-Account-JSON aus Antwort entfernen (Security)
     $safe = array_map(function($d) {
-        return ['id' => $d['id'], 'domain' => $d['domain'], 'site_url' => $d['site_url'], 'sa_email' => $d['sa_email'] ?? ''];
+        return [
+            'id'       => $d['id'],
+            'domain'   => $d['domain'],
+            'site_url' => $d['site_url'],
+            'sa_email' => $d['sa_email'] ?? '',
+            'has_json' => !empty($d['sa_json']),
+            'source'   => 'json',
+        ];
     }, $domains);
+
+    // ENV-Eintrag voranstellen, wenn Secrets gesetzt sind
+    $envCreds = getEnvGscCredentials();
+    if ($envCreds !== null) {
+        $envDomain = preg_replace('#^(sc-domain:|https?://)#i', '', $envCreds['site_url']);
+        $envDomain = rtrim($envDomain, '/');
+        array_unshift($safe, [
+            'id'       => '__env__',
+            'domain'   => $envDomain,
+            'site_url' => $envCreds['site_url'],
+            'sa_email' => $envCreds['sa']['client_email'],
+            'has_json' => true,
+            'source'   => 'env',
+        ]);
+    }
+
     echo json_encode(['success' => true, 'domains' => $safe]);
     exit;
 }
@@ -121,12 +160,19 @@ if ($action === 'data') {
     }
 
     if (!$match || empty($match['sa_json'])) {
-        echo json_encode(['success' => false, 'error' => 'Keine GSC-Domain konfiguriert für diese URL']);
-        exit;
+        // ENV-Fallback versuchen
+        $envCreds = getEnvGscCredentials();
+        if ($envCreds !== null) {
+            $saJson  = $envCreds['sa'];
+            $siteUrl = $envCreds['site_url'];
+        } else {
+            echo json_encode(['success' => false, 'error' => 'Keine GSC-Domain konfiguriert für diese URL']);
+            exit;
+        }
+    } else {
+        $saJson  = $match['sa_json'];
+        $siteUrl = $match['site_url'];
     }
-
-    $saJson  = $match['sa_json'];
-    $siteUrl = $match['site_url'];
 
     // JWT erstellen und Access-Token holen
     $accessToken = getGscAccessToken($saJson);
