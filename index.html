@@ -1844,6 +1844,7 @@ function switchProvider(prov) {
   var bOai = document.getElementById('prov-btn-openai');
   if (bAnt) { bAnt.style.background = prov === 'anthropic' ? 'var(--accent)' : 'transparent'; bAnt.style.color = prov === 'anthropic' ? '#fff' : 'var(--text2)'; }
   if (bOai) { bOai.style.background = prov === 'openai'    ? 'var(--accent)' : 'transparent'; bOai.style.color = prov === 'openai'    ? '#fff' : 'var(--text2)'; }
+  // Verbindungstest-Label sofort aktualisieren
   var connLbl = document.getElementById('conn-anthropic-label');
   if (connLbl) connLbl.textContent = prov === 'openai' ? 'OpenAI API' : 'Anthropic API';
 }
@@ -1956,7 +1957,9 @@ async function runConnectionTest() {
     stat.textContent = status;
   }
 
-  // Init all as loading
+  // Init all as loading — Label je nach Provider setzen
+  var connLbl = document.getElementById('conn-anthropic-label');
+  if (connLbl) connLbl.textContent = currentProvider === 'openai' ? 'OpenAI API' : 'Anthropic API';
   ['anthropic','dataforseo','gsc','fetch','psi'].forEach(function(id) {
     setItem(id, 'loading', 'Prüfe...');
   });
@@ -1975,8 +1978,6 @@ async function runConnectionTest() {
       })
     });
     var ms = Date.now() - t0;
-    var providerLabel = currentProvider === 'openai' ? 'OpenAI API' : 'Anthropic API';
-    document.getElementById('conn-anthropic-label').textContent = providerLabel;
     if (r.ok) {
       setItem('anthropic', 'ok', 'Erreichbar · ' + ms + 'ms');
     } else {
