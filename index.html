@@ -1983,7 +1983,6 @@ async function runConnectionTest() {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
-        _provider: currentProvider,
         model: testModel,
         max_tokens: 1,
         messages: [{role: 'user', content: 'Hi'}]
@@ -2568,7 +2567,7 @@ async function classifyYMYL(url, htmlSource) {
 
 
 async function callAPI(messages, system, useSearch, maxTok) {
-  var body = { _provider: currentProvider, model:"claude-sonnet-4-20250514", max_tokens:maxTok||2000, messages:messages };
+  var body = { model:"claude-sonnet-4-20250514", max_tokens:maxTok||2000, messages:messages };
   if (system)    body.system = system;
   // web_search nur bei Anthropic verfügbar
   if (useSearch && currentProvider === 'anthropic') body.tools = [{ type:"web_search_20250305", name:"web_search" }];
