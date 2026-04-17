@@ -78,9 +78,12 @@ if ($provider === 'openai') {
         exit;
     }
 
-    // Modell: vom Client übermitteltes Feld hat Priorität (z.B. beim Verbindungstest),
-    // danach env var, dann settings.json
-    $model = $body['model'] ?? (getenv('OPENAI_MODEL') ?: ($settings['openai_model'] ?? 'gpt-4.1'));
+    // Bei OpenAI: Client schickt claude-Modellnamen — immer konfiguriertes OpenAI-Modell verwenden
+    $model = getenv('OPENAI_MODEL') ?: ($settings['openai_model'] ?? 'gpt-4.1');
+    // Ausnahme: Verbindungstest schickt explizit ein gültiges OpenAI-Modell
+    if (!empty($body['model']) && str_starts_with($body['model'], 'gpt')) {
+        $model = $body['model'];
+    }
 
     // Nachrichten transformieren: Anthropic → OpenAI
     $messages = $body['messages'];
