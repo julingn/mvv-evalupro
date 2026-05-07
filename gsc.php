@@ -32,14 +32,26 @@ function saveDomains(array $data): void {
     file_put_contents(DOMAINS_FILE, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 }
 
-/** Liest Service-Account und Site-URL aus Env-Vars (base64-dekodiert). */
+/** Liest Service-Account und Site-URL aus Env-Vars.
+ *  Akzeptiert sowohl reines JSON als auch base64-kodiertes JSON. */
 function getEnvGscCredentials(): ?array {
-    $b64 = getenv('GSC_SERVICE_ACCOUNT_JSON');
+    $raw     = getenv('GSC_SERVICE_ACCOUNT_JSON');
     $siteUrl = trim(getenv('GSC_SITE_URL') ?: '');
-    if (empty($b64) || empty($siteUrl)) return null;
-    $json = base64_decode($b64, true);
-    if ($json === false) return null;
-    $sa = json_decode($json, true);
+    if (empty($raw) || empty($siteUrl)) return null;
+
+    // 1. Versuch: reines JSON
+    $sa = json_decode($raw, true);
+    // 2. Versuch: base64-dekodiert (strict)
+    if (!is_array($sa)) {
+        $decoded = base64_decode($raw, true);
+        if ($decoded !== false) $sa = json_decode($decoded, true);
+    }
+    // 3. Versuch: base64-dekodiert (non-strict, z.B. mit Zeilenumbrüchen)
+    if (!is_array($sa)) {
+        $decoded = base64_decode($raw, false);
+        if ($decoded !== false) $sa = json_decode(trim($decoded), true);
+    }
+
     if (!is_array($sa) || empty($sa['client_email']) || empty($sa['private_key'])) return null;
     return ['sa' => $sa, 'site_url' => $siteUrl];
 }

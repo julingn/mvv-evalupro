@@ -6,6 +6,9 @@
  * damit das Frontend keine Unterschiede sieht.
  */
 
+// Langer Claude-Call (29 Kriterien, 8000 Tokens) kann >60s dauern → kein PHP-Timeout
+set_time_limit(0);
+
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
@@ -18,9 +21,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); echo json_
 $settingsFile = __DIR__ . '/settings.json';
 $settings = file_exists($settingsFile) ? json_decode(file_get_contents($settingsFile), true) : [];
 // Provider wird ausschließlich serverseitig bestimmt — Client kann das nicht übersteuern
-$provider = trim(strtolower(
-    getenv('AI_PROVIDER') ?: ($settings['ai_provider'] ?? 'anthropic')
-));
+$envProvider      = trim(strtolower(getenv('AI_PROVIDER') ?: ''));
+$settingsProvider = trim(strtolower($settings['ai_provider'] ?? 'anthropic'));
+// Nur gültige Env-Werte übernehmen; sonst settings.json verwenden
+$provider = in_array($envProvider, ['anthropic', 'openai']) ? $envProvider : $settingsProvider;
 if (!in_array($provider, ['anthropic', 'openai'])) { $provider = 'anthropic'; }
 
 // Request-Body
